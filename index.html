@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OkosKosár" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <title>OkosKosár – Családi Akció- és Bevásárlásfigyelő</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body {
+      background-color: #0b1120;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior-y: none;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Alapértelmezett 23 tételes törzslista + ár adatok
+    const FALLBACK_PRODUCTS = [
+      { id: 'p1', name: 'Csirkemell filé (1 kg)', category: 'Hús & Felvágott', unit: 'kg', prices: { Lidl: 1899, SPAR: 2190, Tesco: 1999 }, promo: { Lidl: true, SPAR: false, Tesco: true } },
+      { id: 'p2', name: 'Mozzarella (125g)', category: 'Tejtermék', unit: 'db', prices: { Lidl: 349, SPAR: 429, Tesco: 389 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p3', name: 'Jázminrizs (1 kg)', category: 'Alapanyag', unit: 'csomag', prices: { Lidl: 799, SPAR: 899, Tesco: 749 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p4', name: 'Trappista sajt (1 kg)', category: 'Tejtermék', unit: 'kg', prices: { Lidl: 2490, SPAR: 2790, Tesco: 2390 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p5', name: 'Laktózmentes tejföl (330g)', category: 'Tejtermék', unit: 'db', prices: { Lidl: 499, SPAR: 549, Tesco: 529 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p6', name: 'Laktózmentes tej 2,8% (1L)', category: 'Tejtermék', unit: 'liter', prices: { Lidl: 439, SPAR: 489, Tesco: 459 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p7', name: 'Tojás M-es (10 db)', category: 'Tejtermék', unit: 'doboz', prices: { Lidl: 699, SPAR: 799, Tesco: 749 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p8', name: 'Tortilla lap (6 db)', category: 'Alapanyag', unit: 'csomag', prices: { Lidl: 549, SPAR: 699, Tesco: 599 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p9', name: 'Light ketchup (450g)', category: 'Szószok', unit: 'flakon', prices: { Lidl: 649, SPAR: 799, Tesco: 699 }, promo: { Lidl: false, SPAR: false, Tesco: false } },
+      { id: 'p10', name: 'Light majonéz (400g)', category: 'Szószok', unit: 'flakon', prices: { Lidl: 699, SPAR: 849, Tesco: 729 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p11', name: 'Csemege karaj felvágott (100g)', category: 'Hús & Felvágott', unit: 'csomag', prices: { Lidl: 449, SPAR: 499, Tesco: 479 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p12', name: 'Szalámi (100g)', category: 'Hús & Felvágott', unit: 'csomag', prices: { Lidl: 599, SPAR: 689, Tesco: 629 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p13', name: 'Vaj (250g)', category: 'Tejtermék', unit: 'db', prices: { Lidl: 899, SPAR: 1090, Tesco: 949 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p14', name: 'Kávékapszula Dolce Gusto (16 db)', category: 'Kávé & Ital', unit: 'doboz', prices: { Lidl: 1799, SPAR: 1699, Tesco: 1899 }, promo: { Lidl: false, SPAR: true, Tesco: false } },
+      { id: 'p15', name: 'Banán (1 kg)', category: 'Zöldség & Gyümölcs', unit: 'kg', prices: { Lidl: 449, SPAR: 529, Tesco: 479 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p16', name: 'Alma (1 kg)', category: 'Zöldség & Gyümölcs', unit: 'kg', prices: { Lidl: 399, SPAR: 449, Tesco: 379 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p17', name: 'Fagyasztott zöldségkeverék (450g)', category: 'Fagyasztott', unit: 'csomag', prices: { Lidl: 429, SPAR: 549, Tesco: 469 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p18', name: 'Leveszöldség csomag (500g)', category: 'Zöldség & Gyümölcs', unit: 'csomag', prices: { Lidl: 499, SPAR: 579, Tesco: 529 }, promo: { Lidl: false, SPAR: false, Tesco: false } },
+      { id: 'p19', name: 'Paradicsom (1 kg)', category: 'Zöldség & Gyümölcs', unit: 'kg', prices: { Lidl: 699, SPAR: 849, Tesco: 749 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p20', name: 'TV Paprika (1 kg)', category: 'Zöldség & Gyümölcs', unit: 'kg', prices: { Lidl: 799, SPAR: 899, Tesco: 749 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p21', name: 'Burgonya (1 kg)', category: 'Zöldség & Gyümölcs', unit: 'kg', prices: { Lidl: 279, SPAR: 349, Tesco: 299 }, promo: { Lidl: true, SPAR: false, Tesco: false } },
+      { id: 'p22', name: 'Gourmet Savoury Cake paradicsommal', category: 'Készétel & Pékség', unit: 'db', prices: { Lidl: 649, SPAR: 699, Tesco: 599 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+      { id: 'p23', name: 'Gourmet Savoury Cake répával', category: 'Készétel & Pékség', unit: 'db', prices: { Lidl: 649, SPAR: 699, Tesco: 599 }, promo: { Lidl: false, SPAR: false, Tesco: true } },
+    ];
+
+    const RECIPES = [
+      {
+        id: 'r1',
+        title: 'Csirkés-mozzarellás tortilla tekercs',
+        time: '20 perc',
+        tag: 'Szuper akciós',
+        ingredients: ['Csirkemell filé (1 kg)', 'Tortilla lap (6 db)', 'Mozzarella (125g)', 'Paradicsom (1 kg)', 'Light majonéz (400g)'],
+        desc: 'Pirított csirkemell csíkok olvadó mozzarellával, friss paradicsommal és light majonézzel tortilla lapba tekerve.'
+      },
+      {
+        id: 'r2',
+        title: 'Zöldséges csirkemell jázminrizzsel',
+        time: '25 perc',
+        tag: 'Gyors vacsora',
+        ingredients: ['Csirkemell filé (1 kg)', 'Jázminrizs (1 kg)', 'Fagyasztott zöldségkeverék (450g)', 'Vaj (250g)'],
+        desc: 'Vajon párolt színes zöldségek pirított csirkemellel és illatos jázminrizzsel.'
+      },
+      {
+        id: 'r3',
+        title: 'Tejfölös-sajtos rakott burgonya',
+        time: '45 perc',
+        tag: 'Családi kedvenc',
+        ingredients: ['Burgonya (1 kg)', 'Laktózmentes tejföl (330g)', 'Trappista sajt (1 kg)', 'Tojás M-es (10 db)', 'Szalámi (100g)'],
+        desc: 'Krémes laktózmentes tejföllel, főtt tojással, szalámival és ropogósra sült trappista sajttal.'
+      },
+      {
+        id: 'r4',
+        title: 'Gazdag zöldségleves',
+        time: '35 perc',
+        tag: 'Kímélő',
+        ingredients: ['Leveszöldség csomag (500g)', 'Burgonya (1 kg)', 'Csirkemell filé (1 kg)'],
+        desc: 'Klasszikus, tápláló zöldségleves friss leveszöldségekből és kockázott csirkemellből.'
+      }
+    ];
+
+    // Egyszerű JSONBin / LocalStorage felhő szinkronizáló réteg
+    // Mivel bárki azonnal használhatja külön API kulcs nélkül is:
+    // Beépített ingyenes npoint / kvdb / localStorage fallback támogatással
+    const SYNC_API = "https://kvdb.io/A9x7kP2mQ8vL4nR1tW6zY";
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('deals');
+      const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+      const [lastUpdated, setLastUpdated] = useState('2026. 11. 22.');
+      const [shoppingList, setShoppingList] = useState([]);
+      const [familyCode, setFamilyCode] = useState(() => localStorage.getItem('okoskosar_family') || 'CSALAD-2026');
+      const [userName, setUserName] = useState(() => localStorage.getItem('okoskosar_user') || 'Én');
+      const [showFamilyModal, setShowFamilyModal] = useState(false);
+      const [syncStatus, setSyncStatus] = useState('online');
+      const [selectedStoreFilter, setSelectedStoreFilter] = useState('Mind');
+      const [searchQuery, setSearchQuery] = useState('');
+
+      // Új termék felvételéhez
+      const [newProdName, setNewProdName] = useState('');
+      const [newProdCat, setNewProdCat] = useState('Alapanyag');
+      const [newPriceLidl, setNewPriceLidl] = useState('');
+      const [newPriceSpar, setNewPriceSpar] = useState('');
+      const [newPriceTesco, setNewPriceTesco] = useState('');
+
+      // 1. Automatikusan generált heti árak betöltése a GitHub Action által frissített data/prices.json fájlból
+      useEffect(() => {
+        fetch('./data/prices.json?t=' + Date.now())
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && Array.isArray(data.products) && data.products.length > 0) {
+              setProducts(prev => {
+                // Összefésüljük a felhőben lévő egyedi termékeket és a friss árakat
+                const map = new Map(data.products.map(p => [p.id, p]));
+                prev.forEach(p => { if (!map.has(p.id)) map.set(p.id, p); });
+                return Array.from(map.values());
+              });
+              if (data.updatedAt) setLastUpdated(data.updatedAt);
+            }
+          })
+          .catch(() => {});
+      }, []);
+
+      // 2. Valós idejű közös családi lista szinkronizáció (polling 3 másodpercenként)
+      const fetchCloudState = async (code) => {
+        try {
+          const res = await fetch(`${SYNC_API}/${encodeURIComponent(code)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.shoppingList) setShoppingList(data.shoppingList);
+            if (data.customProducts && data.customProducts.length > 0) {
+              setProducts(prev => {
+                const map = new Map(prev.map(p => [p.id, p]));
+                data.customProducts.forEach(cp => map.set(cp.id, cp));
+                return Array.from(map.values());
+              });
+            }
+            setSyncStatus('online');
+          }
+        } catch (e) {
+          setSyncStatus('offline');
+        }
+      };
+
+      const pushCloudState = async (newList, updatedProducts) => {
+        localStorage.setItem(`okoskosar_list_${familyCode}`, JSON.stringify(newList));
+        try {
+          setSyncStatus('syncing');
+          const customProducts = updatedProducts.filter(p => p.id.startsWith('custom_'));
+          await fetch(`${SYNC_API}/${encodeURIComponent(familyCode)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              shoppingList: newList,
+              customProducts,
+              updatedAt: Date.now()
+            })
+          });
+          setSyncStatus('online');
+        } catch (e) {
+          setSyncStatus('offline');
+        }
+      };
+
+      useEffect(() => {
+        const saved = localStorage.getItem(`okoskosar_list_${familyCode}`);
+        if (saved) setShoppingList(JSON.parse(saved));
+        fetchCloudState(familyCode);
+        const interval = setInterval(() => fetchCloudState(familyCode), 3500);
+        return () => clearInterval(interval);
+      }, [familyCode]);
+
+      const getBestDeal = (product) => {
+        const entries = Object.entries(product.prices).filter(([_, price]) => price > 0);
+        if (entries.length === 0) return { store: 'Lidl', price: 0, maxPrice: 0, savings: 0 };
+        entries.sort((a, b) => a[1] - b[1]);
+        const [bestStore, bestPrice] = entries[0];
+        const maxPrice = entries[entries.length - 1][1];
+        return { store: bestStore, price: bestPrice, maxPrice, savings: maxPrice - bestPrice };
+      };
+
+      const addToShoppingList = (product, note = '') => {
+        const best = getBestDeal(product);
+        const existingIndex = shoppingList.findIndex(item => item.productId === product.id && !item.checked);
+        let updated;
+        if (existingIndex > -1) {
+          updated = [...shoppingList];
+          updated[existingIndex].qty += 1;
+        } else {
+          updated = [
+            {
+              uid: Date.now() + Math.random().toString(36).slice(2, 6),
+              productId: product.id,
+              name: product.name,
+              store: best.store,
+              price: best.price,
+              savings: best.savings,
+              qty: 1,
+              checked: false,
+              addedBy: userName,
+              note
+            },
+            ...shoppingList
+          ];
+        }
+        setShoppingList(updated);
+        pushCloudState(updated, products);
+      };
+
+      const toggleCheckItem = (uid) => {
+        const updated = shoppingList.map(item =>
+          item.uid === uid ? { ...item, checked: !item.checked } : item
+        );
+        setShoppingList(updated);
+        pushCloudState(updated, products);
+      };
+
+      const removeItem = (uid) => {
+        const updated = shoppingList.filter(item => item.uid !== uid);
+        setShoppingList(updated);
+        pushCloudState(updated, products);
+      };
+
+      const clearChecked = () => {
+        const updated = shoppingList.filter(item => !item.checked);
+        setShoppingList(updated);
+        pushCloudState(updated, products);
+      };
+
+      const addCustomProduct = (e) => {
+        e.preventDefault();
+        if (!newProdName.trim()) return;
+        const newProd = {
+          id: 'custom_' + Date.now(),
+          name: newProdName.trim(),
+          category: newProdCat,
+          unit: 'db',
+          prices: {
+            Lidl: Number(newPriceLidl) || 599,
+            SPAR: Number(newPriceSpar) || 649,
+            Tesco: Number(newPriceTesco) || 619
+          },
+          promo: { Lidl: true, SPAR: false, Tesco: false }
+        };
+        const updatedProducts = [newProd, ...products];
+        setProducts(updatedProducts);
+        pushCloudState(shoppingList, updatedProducts);
+        setNewProdName('');
+        setNewPriceLidl('');
+        setNewPriceSpar('');
+        setNewPriceTesco('');
+      };
+
+      const filteredProducts = useMemo(() => {
+        return products.filter(p => {
+          const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                p.category.toLowerCase().includes(searchQuery.toLowerCase());
+          if (!matchesSearch) return false;
+          if (selectedStoreFilter === 'Mind') return true;
+          return getBestDeal(p).store === selectedStoreFilter;
+        });
+      }, [products, searchQuery, selectedStoreFilter]);
+
+      const listTotals = useMemo(() => {
+        let total = 0;
+        let saved = 0;
+        const byStore = { Lidl: [], SPAR: [], Tesco: [] };
+        shoppingList.forEach(item => {
+          if (!item.checked) {
+            total += item.price * item.qty;
+            saved += item.savings * item.qty;
+          }
+          if (!byStore[item.store]) byStore[item.store] = [];
+          byStore[item.store].push(item);
+        });
+        return { total, saved, byStore };
+      }, [shoppingList]);
+
+      const storeBadgeColor = (store) => {
+        if (store === 'Lidl') return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+        if (store === 'SPAR') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+        if (store === 'Tesco') return 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+        return 'bg-slate-700 text-slate-200';
+      };
+
+      return (
+        <div className="max-w-md mx-auto min-h-screen flex flex-col pb-24">
+          {/* Felső Revolut-stílusú fejléc */}
+          <header className="sticky top-0 z-30 bg-[#0b1120]/90 backdrop-blur-xl border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                  OkosKosár
+                </span>
+                <span className={`w-2 h-2 rounded-full ${syncStatus === 'online' ? 'bg-emerald-400' : syncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' : 'bg-rose-500'}`} />
+              </div>
+              <p className="text-[11px] text-slate-400">Árak frissítve: {lastUpdated}</p>
+            </div>
+
+            <button
+              onClick={() => setShowFamilyModal(true)}
+              className="flex items-center gap-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 px-3 py-1.5 rounded-full text-xs font-medium text-slate-200 transition"
+            >
+              <span>👨‍👩‍👧</span>
+              <span>{familyCode}</span>
+            </button>
+          </header>
+
+          {/* Tartalom */}
+          <main className="flex-1 px-4 pt-4">
+            {/* 1. FÜL: AKCIÓK ÉS ÖSSZEHASONLÍTÓ */}
+            {activeTab === 'deals' && (
+              <div className="space-y-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Keresés a törzslistában (pl. csirkemell, tej)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/60"
+                  />
+                </div>
+
+                {/* Bolt szűrő gombok */}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {['Mind', 'Lidl', 'SPAR', 'Tesco'].map(store => (
+                    <button
+                      key={store}
+                      onClick={() => setSelectedStoreFilter(store)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${
+                        selectedStoreFilter === store
+                          ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
+                          : 'bg-slate-800/70 text-slate-300 border border-slate-700/60'
+                      }`}
+                    >
+                      {store === 'Mind' ? 'Minden bolt' : `Legolcsóbb: ${store}`}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Termékkártyák */}
+                <div className="space-y-3">
+                  {filteredProducts.map(product => {
+                    const best = getBestDeal(product);
+                    const inList = shoppingList.some(i => i.productId === product.id && !i.checked);
+                    return (
+                      <div key={product.id} className="bg-slate-900/80 border border-slate-800/90 rounded-2xl p-3.5 shadow-sm">
+                        <div className="flex justify-between items-start gap-2 mb-2.5">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{product.category}</span>
+                            <h3 className="font-semibold text-[15px] text-slate-100 leading-snug">{product.name}</h3>
+                          </div>
+                          <button
+                            onClick={() => addToShoppingList(product)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shrink-0 ${
+                              inList
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                            }`}
+                          >
+                            {inList ? '✓ Listán (+1)' : '+ Kosárba'}
+                          </button>
+                        </div>
+
+                        {/* 3 bolt ár összehasonlítása */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {['Lidl', 'SPAR', 'Tesco'].map(store => {
+                            const price = product.prices[store];
+                            const isBest = store === best.store;
+                            const isPromo = product.promo && product.promo[store];
+                            return (
+                              <div
+                                key={store}
+                                className={`rounded-xl p-2 border text-center relative ${
+                                  isBest
+                                    ? 'bg-emerald-950/40 border-emerald-500/50'
+                                    : 'bg-slate-950/60 border-slate-800/70'
+                                }`}
+                              >
+                                {isPromo && (
+                                  <span className="absolute -top-2 right-1.5 bg-amber-500 text-slate-950 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                                    AKCIÓ
+                                  </span>
+                                )}
+                                <div className="text-[11px] text-slate-400 font-medium">{store}</div>
+                                <div className={`text-sm font-bold ${isBest ? 'text-emerald-400' : 'text-slate-200'}`}>
+                                  {price} Ft
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 2. FÜL: KÖZÖS BEVÁSÁRLÓLISTA */}
+            {activeTab === 'list' && (
+              <div className="space-y-4">
+                {/* Összesítő Revolut-kártya */}
+                <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-4 shadow-lg">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs text-slate-400">Várható végösszeg (legjobb árakon)</span>
+                    {listTotals.saved > 0 && (
+                      <span className="bg-emerald-500/20 text-emerald-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                        Spórolás: {listTotals.saved.toLocaleString('hu-HU')} Ft
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-3xl font-extrabold text-white tracking-tight">
+                    {listTotals.total.toLocaleString('hu-HU')} <span className="text-base font-normal text-slate-400">Ft</span>
+                  </div>
+                </div>
+
+                {shoppingList.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-900/40 rounded-3xl border border-slate-800/60">
+                    <p className="text-3xl mb-2">🛒</p>
+                    <p className="text-slate-300 font-medium">A közös lista jelenleg üres</p>
+                    <p className="text-xs text-slate-500 mt-1">Tegyél be termékeket az Akciók vagy Főzés fülről!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {['Lidl', 'SPAR', 'Tesco'].map(store => {
+                      const items = listTotals.byStore[store] || [];
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={store} className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+                          <div className="px-4 py-2.5 bg-slate-800/50 border-b border-slate-800 flex justify-between items-center">
+                            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${storeBadgeColor(store)}`}>
+                              {store}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {items.filter(i => !i.checked).reduce((s, i) => s + i.price * i.qty, 0).toLocaleString('hu-HU')} Ft
+                            </span>
+                          </div>
+                          <div className="divide-y divide-slate-800/70">
+                            {items.map(item => (
+                              <div key={item.uid} className="p-3.5 flex items-center justify-between gap-3">
+                                <button
+                                  onClick={() => toggleCheckItem(item.uid)}
+                                  className="flex items-center gap-3 text-left flex-1"
+                                >
+                                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition shrink-0 ${
+                                    item.checked ? 'bg-emerald-500 border-emerald-500 text-slate-950' : 'border-slate-600'
+                                  }`}>
+                                    {item.checked && '✓'}
+                                  </div>
+                                  <div>
+                                    <div className={`text-sm font-medium ${item.checked ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+                                      {item.name} {item.qty > 1 && <span className="text-emerald-400 font-bold">({item.qty}x)</span>}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                                      <span>{item.price * item.qty} Ft</span>
+                                      <span>•</span>
+                                      <span className="text-cyan-400">Hozzáadta: {item.addedBy}</span>
+                                    </div>
+                                  </div>
+                                </button>
+                                <button
+                                  onClick={() => removeItem(item.uid)}
+                                  className="text-slate-500 hover:text-rose-400 p-1.5 text-sm"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {shoppingList.some(i => i.checked) && (
+                      <button
+                        onClick={clearChecked}
+                        className="w-full py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-xs font-semibold text-slate-300 border border-slate-700"
+                      >
+                        Kipipált tételek törlése
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. FÜL: FŐZÉS ÖTLETEK */}
+            {activeTab === 'recipes' && (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-400 px-1">
+                  Receptötletek a saját törzslistátok alapanyagaiból:
+                </p>
+                {RECIPES.map(recipe => (
+                  <div key={recipe.id} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="inline-block bg-emerald-500/15 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">
+                          {recipe.tag} • {recipe.time}
+                        </span>
+                        <h3 className="font-bold text-base text-white">{recipe.title}</h3>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">{recipe.desc}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recipe.ingredients.map(ing => (
+                        <span key={ing} className="text-[11px] bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg">
+                          {ing}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        recipe.ingredients.forEach(ingName => {
+                          const prod = products.find(p => p.name === ingName);
+                          if (prod) addToShoppingList(prod, recipe.title);
+                        });
+                        setActiveTab('list');
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+                    >
+                      + Összes hozzávaló a listára
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 4. FÜL: TÖRZSLISTA KEZELÉSE */}
+            {activeTab === 'products' && (
+              <div className="space-y-4">
+                <form onSubmit={addCustomProduct} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3">
+                  <h3 className="font-bold text-sm text-white">Új állandó termék hozzáadása</h3>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Termék neve (pl. Görög joghurt)"
+                    value={newProdName}
+                    onChange={(e) => setNewProdName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white"
+                  />
+                  <select
+                    value={newProdCat}
+                    onChange={(e) => setNewProdCat(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200"
+                  >
+                    <option>Alapanyag</option>
+                    <option>Hús & Felvágott</option>
+                    <option>Tejtermék</option>
+                    <option>Zöldség & Gyümölcs</option>
+                    <option>Szószok</option>
+                    <option>Készétel & Pékség</option>
+                  </select>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="number" placeholder="Lidl Ft" value={newPriceLidl} onChange={e => setNewPriceLidl(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    <input type="number" placeholder="SPAR Ft" value={newPriceSpar} onChange={e => setNewPriceSpar(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
+                    <input type="number" placeholder="Tesco Ft" value={newPriceTesco} onChange={e => setNewPriceTesco(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white" />
+                  </div>
+                  <button type="submit" className="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs">
+                    + Mentés a közös törzslistába
+                  </button>
+                </form>
+
+                <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                    Figyelt termékek ({products.length} db)
+                  </h4>
+                  <div className="space-y-2">
+                    {products.map(p => (
+                      <div key={p.id} className="flex justify-between items-center py-1.5 border-b border-slate-800/60 last:border-0 text-xs">
+                        <span className="text-slate-200">{p.name}</span>
+                        <span className="text-emerald-400 font-semibold">{getBestDeal(p).store}: {getBestDeal(p).price} Ft</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* Alsó navigációs sáv */}
+          <nav className="fixed bottom-0 left-0 right-0 bg-[#0b1120]/95 backdrop-blur-xl border-t border-slate-800/90 px-2 py-2 z-40">
+            <div className="max-w-md mx-auto grid grid-cols-4 gap-1">
+              {[
+                { id: 'deals', icon: '🏷️', label: 'Akciók' },
+                { id: 'list', icon: '🛒', label: `Lista (${shoppingList.filter(i => !i.checked).length})` },
+                { id: 'recipes', icon: '🍳', label: 'Főzés' },
+                { id: 'products', icon: '📋', label: 'Termékeim' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex flex-col items-center py-1.5 rounded-2xl transition ${
+                    activeTab === tab.id ? 'bg-emerald-500/15 text-emerald-400' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span className="text-lg">{tab.icon}</span>
+                  <span className="text-[11px] font-semibold mt-0.5">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          {/* Családi szinkron modal */}
+          {showFamilyModal && (
+            <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-5 space-y-4">
+                <h3 className="text-lg font-bold text-white">Közös családi szinkron</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Írjátok be ugyanazt a <strong>Családi kódot</strong> a te és a párod telefonján is, így minden tétel valós időben megjelenik mindkettőtöknél.
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">A te neved a listán</label>
+                    <input
+                      type="text"
+                      value={userName}
+                      onChange={(e) => {
+                        setUserName(e.target.value);
+                        localStorage.setItem('okoskosar_user', e.target.value);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Közös családi kód</label>
+                    <input
+                      type="text"
+                      value={familyCode}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setFamilyCode(val);
+                        localStorage.setItem('okoskosar_family', val);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-emerald-400"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowFamilyModal(false)}
+                  className="w-full py-3 rounded-xl bg-emerald-500 text-slate-950 font-bold text-sm"
+                >
+                  Kész, mentés
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
